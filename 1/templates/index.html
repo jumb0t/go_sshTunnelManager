@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SSH Tunnel Manager</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        /* Основные стили для адаптивности и макета */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0;
+        }
+
+        .container {
+            width: 95%;
+            margin: 0 auto;
+            padding: 10px;
+        }
+
+        h1 {
+            text-align: left;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        h2 {
+            text-align: center;
+        }
+
+        .stats {
+            text-align: left;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .stats span {
+            margin-right: 10px;
+            font-weight: bold;
+        }
+
+        .search-container {
+            text-align: left;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .search-container input {
+            padding: 5px;
+            width: 200px;
+            margin-right: 10px;
+        }
+
+        .top-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .bulk-actions {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .bulk-actions button, .bulk-actions select {
+            margin-right: 5px;
+            padding: 5px 10px;
+            margin-bottom: 5px;
+        }
+
+        .theme-selector {
+            margin-left: auto;
+        }
+
+        .table-responsive {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: #fff;
+        }
+
+        th, td {
+            padding: 5px 8px;
+            border: 1px solid #ccc;
+            text-align: center;
+            font-size: 12px;
+        }
+
+        th {
+            background-color: #e9e9e9;
+        }
+
+        /* Цвет строки в зависимости от статуса */
+        .row-running {
+            background-color: #d4f4d2;
+        }
+
+        .row-restarting {
+            background-color: #ffe7ba;
+        }
+
+        .row-stopped {
+            background-color: #f8d7da;
+        }
+
+        .actions button {
+            margin: 0 2px;
+            padding: 3px 6px;
+            font-size: 12px;
+        }
+
+        /* Адаптивные настройки */
+        @media (max-width: 768px) {
+            .top-buttons {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .bulk-actions {
+                flex-wrap: wrap;
+            }
+
+            .bulk-actions button, .bulk-actions select {
+                margin-bottom: 5px;
+            }
+
+            .theme-selector {
+                margin-left: 0;
+            }
+        }
+
+        /* Стили вкладок */
+        .tab {
+            overflow: hidden;
+            border-bottom: 1px solid #ccc;
+            margin-bottom: 10px;
+        }
+
+        .tab button {
+            background-color: inherit;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            padding: 8px 10px;
+            transition: 0.3s;
+            font-size: 14px;
+        }
+
+        .tab button:hover {
+            background-color: #ddd;
+        }
+
+        .tab button.active {
+            background-color: #ccc;
+        }
+
+        /* Стили тем */
+        body.light {
+            background-color: #f0f0f0;
+            color: #000;
+        }
+
+        body.dark {
+            background-color: #121212;
+            color: #fff;
+        }
+
+        body.dark table {
+            background-color: #1e1e1e;
+        }
+
+        body.dark th {
+            background-color: #333;
+        }
+
+        body.blue {
+            background-color: #e0f7fa;
+            color: #006064;
+        }
+
+        body.blue table {
+            background-color: #b2ebf2;
+        }
+
+        body.blue th {
+            background-color: #4dd0e1;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .footer button, .footer select {
+            margin: 5px;
+            padding: 8px 12px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+        }
+
+        .form-container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .logs {
+            background-color: #fff;
+            padding: 10px;
+            max-height: 500px;
+            overflow-y: scroll;
+            font-family: monospace;
+        }
+
+        .logs p {
+            margin: 0;
+        }
+
+    </style>
+</head>
+<body class="{{.Theme}}">
+    <div class="container">
+        <h1>SSH Tunnel Manager</h1>
+
+        {{if eq .Page "index"}}
+        <!-- Единая форма для массовых действий и выбора туннелей -->
+        <form method="post" action="/bulk_action" id="bulkActionForm">
+            <div class="top-buttons">
+                <div class="bulk-actions">
+                    <!-- Добавляем скрытое поле для действия -->
+                    <input type="hidden" name="action" id="bulkAction">
+
+                    <!-- Изменяем кнопки массовых действий -->
+                    <button type="button" onclick="submitBulkAction('start_selected')">Start Selected</button>
+                    <button type="button" onclick="submitBulkAction('stop_selected')">Stop Selected</button>
+                    <button type="button" onclick="submitBulkAction('restart_selected')">Restart Selected</button>
+                    <button type="button" onclick="submitBulkAction('delete_selected')">Delete Selected</button>
+                    <button type="button" onclick="selectAll(true)">Select All</button>
+                    <button type="button" onclick="selectAll(false)">Deselect All</button>
+                    <button type="button" onclick="window.location.href='/add'">Add Tunnel</button>
+                    <button type="button" onclick="window.location.href='/logs'">View Logs</button>
+                    <button type="button" onclick="window.location.href='/edit_global'">Edit Global Max Reconnections</button>
+                </div>
+                <div class="theme-selector">
+                    <select onchange="changeTheme(this.value)">
+                        <option value="light" {{if eq .Theme "light"}}selected{{end}}>Light Theme</option>
+                        <option value="dark" {{if eq .Theme "dark"}}selected{{end}}>Dark Theme</option>
+                        <option value="blue" {{if eq .Theme "blue"}}selected{{end}}>Blue Theme</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="stats">
+                <span>Total Tunnels: {{.TotalTunnels}}</span>
+                <span>Active: {{.ActiveTunnels}}</span>
+                <span>Error: {{.ErrorTunnels}}</span>
+                <span>Restarting: {{.RestartingTunnels}}</span>
+            </div>
+
+            <div class="search-container">
+                <input type="text" id="searchInput" onkeyup="filterTunnels()" placeholder="Search for tunnels...">
+            </div>
+
+            <!-- Вкладки для групп -->
+            <div class="tab">
+                {{range $groupName, $_ := .GroupedTunnels}}
+                <button class="tablinks" data-safeid="{{safeID $groupName}}" onclick="openGroup(event, '{{safeID $groupName}}')">{{$groupName}}</button>
+                {{end}}
+            </div>
+
+            {{range $group, $tunnels := .GroupedTunnels}}
+            <div id="{{safeID $group}}" class="tabcontent" style="display:none">
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>No.</th>
+                                <th><input type="checkbox" onclick="toggleGroup(this, 'group-{{safeID $group}}')"></th>
+                                <th>Name</th>
+                                <th>Host</th>
+                                <th>Port</th>
+                                <th>Username</th>
+                                <th>Password</th>
+                                <th>Local Port</th>
+                                <th>Auto Reconnects</th>
+                                <th>Max Reconnections</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tunnelTable">
+                            {{range $index, $tunnel := $tunnels}}
+                            <tr class="row-{{$tunnel.Status}}">
+                                <td>{{$tunnel.Config.SerialNumber}}</td>
+                                <td><input type="checkbox" name="selected_tunnels" value="{{$tunnel.Config.Name}}" class="group-{{safeID $group}}"></td>
+                                <td>{{$tunnel.Config.Name}}</td>
+                                <td>{{$tunnel.Config.Host}}</td>
+                                <td>{{$tunnel.Config.Port}}</td>
+                                <td>{{$tunnel.Config.Username}}</td>
+                                <td>{{$tunnel.Config.Password}}</td>
+                                <td>{{$tunnel.Config.LocalPort}}</td>
+                                <td>{{$tunnel.Config.AutoReconnects}}</td>
+                                <td>{{$tunnel.Config.MaxReconnects}}</td>
+                                <td class="status-{{$tunnel.Status}}">{{capitalize $tunnel.Status}}</td>
+                                <td class="actions">
+                                    <button type="button" onclick="window.location.href='/start?name={{$tunnel.Config.Name}}'">Start</button>
+                                    <button type="button" onclick="window.location.href='/stop?name={{$tunnel.Config.Name}}'">Stop</button>
+                                    <button type="button" onclick="window.location.href='/restart?name={{$tunnel.Config.Name}}'">Restart</button>
+                                    <button type="button" onclick="window.location.href='/edit?name={{$tunnel.Config.Name}}'">Edit</button>
+                                    <button type="button" onclick="window.location.href='/delete?name={{$tunnel.Config.Name}}'">Delete</button>
+                                </td>
+                            </tr>
+                            {{end}}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {{end}}
+        </form>
+        {{end}}
+
+        <!-- Форма добавления туннеля -->
+        {{if eq .Page "add"}}
+        <h2>Add New SSH Tunnel</h2>
+        <div class="form-container">
+            <form method="post" action="/add">
+                <div class="form-group">
+                    <label for="name">Tunnel Name:</label>
+                    <input type="text" id="name" name="name" required>
+                </div>
+                <!-- Остальные поля формы -->
+                <div class="form-group">
+                    <label for="host">Host:</label>
+                    <input type="text" id="host" name="host" required>
+                </div>
+                <div class="form-group">
+                    <label for="port">Port:</label>
+                    <input type="number" id="port" name="port" value="22" required>
+                </div>
+                <div class="form-group">
+                    <label for="username">Username:</label>
+                    <input type="text" id="username" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password:</label>
+                    <input type="text" id="password" name="password">
+                </div>
+                <div class="form-group">
+                    <label for="local_port">Local Port:</label>
+                    <input type="number" id="local_port" name="local_port" required>
+                </div>
+                <div class="form-group">
+                    <label for="group">Group:</label>
+                    <input type="text" id="group" name="group">
+                </div>
+                <div class="form-group">
+                    <label for="comment">Comment:</label>
+                    <input type="text" id="comment" name="comment">
+                </div>
+                <div class="form-group">
+                    <label for="max_reconnects">Max Reconnections:</label>
+                    <input type="number" id="max_reconnects" name="max_reconnects" value="3" required>
+                </div>
+                <div class="form-group">
+                    <label for="auto_reconnects">Auto Reconnects:</label>
+                    <input type="number" id="auto_reconnects" name="auto_reconnects" value="1" required>
+                </div>
+                <button type="submit">Add Tunnel</button>
+            </form>
+        </div>
+        <div class="footer">
+            <button onclick="window.location.href='/'">Back to Home</button>
+        </div>
+        {{end}}
+
+        <!-- Форма редактирования туннеля -->
+        {{if eq .Page "edit"}}
+        <h2>Edit SSH Tunnel</h2>
+        <div class="form-container">
+            <form method="post" action="/edit?name={{.Tunnel.Config.Name}}">
+                <div class="form-group">
+                    <label for="name">Tunnel Name:</label>
+                    <input type="text" id="name" name="name" value="{{.Tunnel.Config.Name}}" required>
+                </div>
+                <!-- Остальные поля формы с текущими значениями -->
+                <div class="form-group">
+                    <label for="host">Host:</label>
+                    <input type="text" id="host" name="host" value="{{.Tunnel.Config.Host}}" required>
+                </div>
+                <div class="form-group">
+                    <label for="port">Port:</label>
+                    <input type="number" id="port" name="port" value="{{.Tunnel.Config.Port}}" required>
+                </div>
+                <div class="form-group">
+                    <label for="username">Username:</label>
+                    <input type="text" id="username" name="username" value="{{.Tunnel.Config.Username}}" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password:</label>
+                    <input type="text" id="password" name="password" value="{{.Tunnel.Config.Password}}">
+                </div>
+                <div class="form-group">
+                    <label for="local_port">Local Port:</label>
+                    <input type="number" id="local_port" name="local_port" value="{{.Tunnel.Config.LocalPort}}" required>
+                </div>
+                <div class="form-group">
+                    <label for="group">Group:</label>
+                    <input type="text" id="group" name="group" value="{{.Tunnel.Config.Group}}">
+                </div>
+                <div class="form-group">
+                    <label for="comment">Comment:</label>
+                    <input type="text" id="comment" name="comment" value="{{.Tunnel.Config.Comment}}">
+                </div>
+                <div class="form-group">
+                    <label for="max_reconnects">Max Reconnections:</label>
+                    <input type="number" id="max_reconnects" name="max_reconnects" value="{{.Tunnel.Config.MaxReconnects}}" required>
+                </div>
+                <div class="form-group">
+                    <label for="auto_reconnects">Auto Reconnects:</label>
+                    <input type="number" id="auto_reconnects" name="auto_reconnects" value="{{.Tunnel.Config.AutoReconnects}}" required>
+                </div>
+                <button type="submit">Save Changes</button>
+            </form>
+        </div>
+        <div class="footer">
+            <button onclick="window.location.href='/'">Back to Home</button>
+        </div>
+        {{end}}
+
+        <!-- Форма редактирования глобальных настроек -->
+        {{if eq .Page "edit_global"}}
+        <h2>Edit Global Max Reconnections</h2>
+        <div class="form-container">
+            <form method="post" action="/edit_global">
+                <div class="form-group">
+                    <label for="max_reconnects">Max Reconnections:</label>
+                    <input type="number" id="max_reconnects" name="max_reconnects" value="3" required>
+                </div>
+                <button type="submit">Update All Tunnels</button>
+            </form>
+        </div>
+        <div class="footer">
+            <button onclick="window.location.href='/'">Back to Home</button>
+        </div>
+        {{end}}
+
+        <!-- Страница логов -->
+        {{if eq .Page "logs"}}
+        <h2>Application Logs</h2>
+        <div class="logs">
+            {{range .Logs}}
+            <p>{{.}}</p>
+            {{end}}
+        </div>
+        <div class="footer">
+            <button onclick="window.location.href='/'">Back to Home</button>
+        </div>
+        {{end}}
+
+    </div>
+
+    <script>
+    document.addEventListener("DOMContentLoaded", function() {
+        var firstTabButton = document.querySelector(".tablinks");
+        if (firstTabButton) {
+            firstTabButton.classList.add("active");
+            var safeID = firstTabButton.getAttribute("data-safeid");
+            var firstTabContent = document.getElementById(safeID);
+            if (firstTabContent) {
+                firstTabContent.style.display = "block";
+            }
+        }
+    });
+
+    function openGroup(evt, groupName) {
+        var i, tabcontent, tablinks;
+        tabcontent = document.getElementsByClassName("tabcontent");
+        for (i = 0; i < tabcontent.length; i++) {
+            tabcontent[i].style.display = "none";
+        }
+        tablinks = document.getElementsByClassName("tablinks");
+        for (i = 0; i < tablinks.length; i++) {
+            tablinks[i].classList.remove("active");
+        }
+        var selectedTab = document.getElementById(groupName);
+        if (selectedTab) {
+            selectedTab.style.display = "block";
+            evt.currentTarget.classList.add("active");
+        }
+    }
+
+    function selectAll(checked) {
+        const checkboxes = document.querySelectorAll('input[name="selected_tunnels"]');
+        checkboxes.forEach(cb => cb.checked = checked);
+    }
+
+    function toggleGroup(masterCheckbox, groupClass) {
+        const checkboxes = document.querySelectorAll('.' + groupClass);
+        checkboxes.forEach(cb => cb.checked = masterCheckbox.checked);
+    }
+
+    function changeTheme(theme) {
+        window.location.href = '/toggle_theme?theme=' + theme;
+    }
+
+    function filterTunnels() {
+        var input, filter, tr, td, i, txtValue;
+        input = document.getElementById("searchInput");
+        filter = input.value.toUpperCase();
+        tr = document.querySelectorAll("#tunnelTable tr");
+        for (i = 0; i < tr.length; i++) {
+            var match = false;
+            td = tr[i].getElementsByTagName("td");
+            for (var j = 2; j <= 6; j++) {
+                if (td[j]) {
+                    txtValue = td[j].textContent || td[j].innerText;
+                    if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                        match = true;
+                        break;
+                    }
+                }
+            }
+            tr[i].style.display = match ? "" : "none";
+        }
+    }
+
+    function submitBulkAction(action) {
+        document.getElementById('bulkAction').value = action;
+        document.getElementById('bulkActionForm').submit();
+    }
+    </script>
+</body>
+</html>

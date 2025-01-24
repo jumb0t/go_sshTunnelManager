@@ -1,0 +1,16 @@
+[
+    {
+        "name": "tunnel_129_178_172_24_4000",
+        "host": "120.90.0.0",
+        "port": 22,
+        "username": "sshmmo",
+        "password": "sshmmo.com",
+        "local_port": 4000,
+        "group": "Default",
+        "comment": "",
+        "ssh_options": [],
+        "serial_number": 1,
+        "max_reconnects": 5,
+        "auto_reconnects": 5
+    }
+]
